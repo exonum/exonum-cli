@@ -23,7 +23,6 @@ use structopt::StructOpt;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
-use crate::command::{ExonumCommand, StandardResult};
 use crate::io::load_config_file;
 use crate::password::{PassInputMethod, SecretKeyType};
 
@@ -73,8 +72,9 @@ pub struct Run {
     pub service_key_pass: Option<PassInputMethod>,
 }
 
-impl ExonumCommand for Run {
-    fn execute(self) -> Result<StandardResult, Error> {
+impl Run {
+    /// Run a node with provided configuration.
+    pub fn execute(self) -> Result<NodeRunConfig, Error> {
         let config_path = self.node_config;
 
         let mut config: NodeConfig<PathBuf> = load_config_file(&config_path)?;
@@ -110,6 +110,6 @@ impl ExonumCommand for Run {
             db_path: self.db_path,
         };
 
-        Ok(StandardResult::Run(run_config))
+        Ok(run_config)
     }
 }

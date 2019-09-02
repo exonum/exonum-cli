@@ -20,7 +20,6 @@ use structopt::StructOpt;
 
 use std::path::PathBuf;
 
-use crate::command::{ExonumCommand, StandardResult};
 use crate::config::{CommonConfigTemplate, GeneralConfig};
 use crate::io::save_config_file;
 
@@ -35,8 +34,15 @@ pub struct GenerateTemplate {
     pub validators_count: u32,
 }
 
-impl ExonumCommand for GenerateTemplate {
-    fn execute(self) -> Result<StandardResult, Error> {
+/// `generate-template` command output.
+pub struct GenerateTemplateOutput {
+    /// Path to a generated common template file.
+    pub template_config_path: PathBuf,
+}
+
+impl GenerateTemplate {
+    /// Generate common (template) node configuration.
+    pub fn execute(self) -> Result<GenerateTemplateOutput, Error> {
         let config_template = CommonConfigTemplate {
             consensus_config: Default::default(),
             general_config: GeneralConfig {
@@ -44,7 +50,7 @@ impl ExonumCommand for GenerateTemplate {
             },
         };
         save_config_file(&config_template, &self.common_config)?;
-        Ok(StandardResult::GenerateTemplate {
+        Ok(GenerateTemplateOutput {
             template_config_path: self.common_config,
         })
     }

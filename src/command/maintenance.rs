@@ -23,7 +23,6 @@ use structopt::StructOpt;
 
 use std::path::PathBuf;
 
-use crate::command::{ExonumCommand, StandardResult};
 use crate::io::load_config_file;
 
 /// Perform different maintenance actions.
@@ -60,14 +59,25 @@ impl Action {
     }
 }
 
-impl ExonumCommand for Maintenance {
-    fn execute(self) -> Result<StandardResult, Error> {
+/// `maintenance` command output.
+pub struct MaintenanceOutput {
+    /// Path to a node configuration file.
+    pub node_config_path: PathBuf,
+    /// Path to a database directory.
+    pub db_path: PathBuf,
+    /// Performed action.
+    pub performed_action: Action,
+}
+
+impl Maintenance {
+    /// Execute specific maintenance action.
+    pub fn execute(self) -> Result<MaintenanceOutput, Error> {
         match self.action {
             Action::ClearCache => {
                 Action::clear_cache(self.node_config.clone(), self.db_path.clone())?
             }
         }
-        Ok(StandardResult::Maintenance {
+        Ok(MaintenanceOutput {
             node_config_path: self.node_config,
             db_path: self.db_path,
             performed_action: self.action,

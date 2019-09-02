@@ -25,7 +25,6 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
-use crate::command::{ExonumCommand, StandardResult};
 use crate::config::{CommonConfigTemplate, NodePrivateConfig, NodePublicConfig, SharedConfig};
 use crate::io::{load_config_file, save_config_file};
 
@@ -61,60 +60,15 @@ pub struct Finalize {
     pub private_allow_origin: Option<String>,
 }
 
-impl Finalize {
-    fn reduce_configs(
-        public_configs: Vec<SharedConfig>,
-        our_config: &NodePrivateConfig,
-    ) -> (
-        CommonConfigTemplate,
-        Vec<NodePublicConfig>,
-        Option<NodePublicConfig>,
-    ) {
-        let mut map = BTreeMap::new();
-        let mut config_iter = public_configs.into_iter();
-        let first = config_iter
-            .next()
-            .expect("Expected at least one config in PUBLIC_CONFIGS");
-        let common = first.common;
-        map.insert(first.node.validator_keys.consensus_key, first.node);
-
-        for config in config_iter {
-            if common != config.common {
-                panic!("Found config with different common part.");
-            };
-            if map
-                .insert(config.node.validator_keys.consensus_key, config.node)
-                .is_some()
-            {
-                panic!("Found duplicate consensus keys in PUBLIC_CONFIGS");
-            }
-        }
-        (
-            common,
-            map.iter().map(|(_, c)| c.clone()).collect(),
-            map.get(&our_config.consensus_public_key).cloned(),
-        )
-    }
-
-    fn create_connect_list_config(
-        list: &[NodePublicConfig],
-        node: &NodePrivateConfig,
-    ) -> ConnectListConfig {
-        let peers = list
-            .iter()
-            .filter(|config| config.validator_keys.consensus_key != node.consensus_public_key)
-            .map(|config| ConnectInfo {
-                public_key: config.validator_keys.consensus_key,
-                address: config.address.clone(),
-            })
-            .collect();
-
-        ConnectListConfig { peers }
-    }
+/// `finalize` command output.
+pub struct FinalizeOutput {
+    /// Path to a generated final node config.
+    pub node_config_path: PathBuf,
 }
 
-impl ExonumCommand for Finalize {
-    fn execute(self) -> Result<StandardResult, Error> {
+impl Finalize {
+    /// Generate final node configuration.
+    pub fn execute(self) -> Result<FinalizeOutput, Error> {
         let secret_config: NodePrivateConfig = load_config_file(&self.secret_config_path)?;
         let secret_config_dir = std::env::current_dir()
             .expect("Failed to get current dir")
@@ -172,8 +126,58 @@ impl ExonumCommand for Finalize {
 
         save_config_file(&config, &self.output_config_path)?;
 
-        Ok(StandardResult::Finalize {
+        Ok(FinalizeOutput {
             node_config_path: self.output_config_path,
         })
+    }
+
+    fn reduce_configs(
+        public_configs: Vec<SharedConfig>,
+        our_config: &NodePrivateConfig,
+    ) -> (
+        CommonConfigTemplate,
+        Vec<NodePublicConfig>,
+        Option<NodePublicConfig>,
+    ) {
+        let mut map = BTreeMap::new();
+        let mut config_iter = public_configs.into_iter();
+        let first = config_iter
+            .next()
+            .expect("Expected at least one config in PUBLIC_CONFIGS");
+        let common = first.common;
+        map.insert(first.node.validator_keys.consensus_key, first.node);
+
+        for config in config_iter {
+            if common != config.common {
+                panic!("Found config with different common part.");
+            };
+            if map
+                .insert(config.node.validator_keys.consensus_key, config.node)
+                .is_some()
+            {
+                panic!("Found duplicate consensus keys in PUBLIC_CONFIGS");
+            }
+        }
+        (
+            common,
+            map.iter().map(|(_, c)| c.clone()).collect(),
+            map.get(&our_config.consensus_public_key).cloned(),
+        )
+    }
+
+    fn create_connect_list_config(
+        list: &[NodePublicConfig],
+        node: &NodePrivateConfig,
+    ) -> ConnectListConfig {
+        let peers = list
+            .iter()
+            .filter(|config| config.validator_keys.consensus_key != node.consensus_public_key)
+            .map(|config| ConnectInfo {
+                public_key: config.validator_keys.consensus_key,
+                address: config.address.clone(),
+            })
+            .collect();
+
+        ConnectListConfig { peers }
     }
 }

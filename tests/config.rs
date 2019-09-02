@@ -25,7 +25,7 @@ use exonum::{
 };
 use serde::{Deserialize, Serialize};
 
-use exonum_cli::command::{Command, ExonumCommand, StandardResult};
+use exonum_cli::command::Command;
 #[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
 use std::{
@@ -177,14 +177,6 @@ impl ArgsBuilder {
     fn run(self) -> Result<StandardResult, failure::Error> {
         let command = <Command as StructOpt>::from_iter_safe(self.args).unwrap();
         command.execute()
-    }
-}
-
-fn is_run_node_config(result: StandardResult) -> bool {
-    if let StandardResult::Run(_) = result {
-        true
-    } else {
-        false
     }
 }
 

@@ -25,7 +25,6 @@ use std::fs;
 use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
 
-use crate::command::{ExonumCommand, StandardResult};
 use crate::config::{CommonConfigTemplate, NodePrivateConfig, NodePublicConfig, SharedConfig};
 use crate::io::{load_config_file, save_config_file};
 use crate::password::{PassInputMethod, SecretKeyType, ZeroizeOnDrop};
@@ -87,49 +86,17 @@ pub struct GenerateConfig {
     pub service_key_pass: Option<PassInputMethod>,
 }
 
-impl GenerateConfig {
-    fn get_passphrase(
-        no_password: bool,
-        method: PassInputMethod,
-        secret_key_type: SecretKeyType,
-    ) -> ZeroizeOnDrop<String> {
-        if no_password {
-            ZeroizeOnDrop::default()
-        } else {
-            method.get_passphrase(secret_key_type, false)
-        }
-    }
-
-    /// If no port is provided by user, uses `DEFAULT_EXONUM_LISTEN_PORT`.
-    fn parse_external_address(input: &str) -> Result<SocketAddr, Error> {
-        if let Ok(address) = input.parse() {
-            Ok(address)
-        } else {
-            let ip_address = input.parse()?;
-            Ok(SocketAddr::new(ip_address, DEFAULT_EXONUM_LISTEN_PORT))
-        }
-    }
-
-    /// Returns `provided` address or and address combined from all-zeros
-    /// IP address and the port number from `external_address`.
-    fn get_listen_address(
-        provided: Option<SocketAddr>,
-        external_address: SocketAddr,
-    ) -> SocketAddr {
-        if provided.is_some() {
-            provided.unwrap()
-        } else {
-            let ip_address = match external_address.ip() {
-                IpAddr::V4(_) => "0.0.0.0".parse().unwrap(),
-                IpAddr::V6(_) => "::".parse().unwrap(),
-            };
-            SocketAddr::new(ip_address, external_address.port())
-        }
-    }
+/// `generate-config` command output.
+pub struct GenerateConfigOutput {
+    /// Path to a generated public config of the node.
+    pub public_config_path: PathBuf,
+    /// Path to a generated private config of the node.
+    pub secret_config_path: PathBuf,
 }
 
-impl ExonumCommand for GenerateConfig {
-    fn execute(self) -> Result<StandardResult, Error> {
+impl GenerateConfig {
+    /// Generate public and secret parts of the node configuration.
+    pub fn execute(self) -> Result<GenerateConfigOutput, Error> {
         let common_config: CommonConfigTemplate = load_config_file(self.common_config.clone())?;
 
         let pub_config_path = self.output_dir.join(PUB_CONFIG_FILE_NAME);
@@ -182,10 +149,49 @@ impl ExonumCommand for GenerateConfig {
 
         save_config_file(&private_config, &private_config_path)?;
 
-        Ok(StandardResult::GenerateConfig {
+        Ok(GenerateConfigOutput {
             public_config_path: pub_config_path,
             secret_config_path: private_config_path,
         })
+    }
+
+    fn get_passphrase(
+        no_password: bool,
+        method: PassInputMethod,
+        secret_key_type: SecretKeyType,
+    ) -> ZeroizeOnDrop<String> {
+        if no_password {
+            ZeroizeOnDrop::default()
+        } else {
+            method.get_passphrase(secret_key_type, false)
+        }
+    }
+
+    /// If no port is provided by user, uses `DEFAULT_EXONUM_LISTEN_PORT`.
+    fn parse_external_address(input: &str) -> Result<SocketAddr, Error> {
+        if let Ok(address) = input.parse() {
+            Ok(address)
+        } else {
+            let ip_address = input.parse()?;
+            Ok(SocketAddr::new(ip_address, DEFAULT_EXONUM_LISTEN_PORT))
+        }
+    }
+
+    /// Returns `provided` address or and address combined from all-zeros
+    /// IP address and the port number from `external_address`.
+    fn get_listen_address(
+        provided: Option<SocketAddr>,
+        external_address: SocketAddr,
+    ) -> SocketAddr {
+        if provided.is_some() {
+            provided.unwrap()
+        } else {
+            let ip_address = match external_address.ip() {
+                IpAddr::V4(_) => "0.0.0.0".parse().unwrap(),
+                IpAddr::V6(_) => "::".parse().unwrap(),
+            };
+            SocketAddr::new(ip_address, external_address.port())
+        }
     }
 }
 

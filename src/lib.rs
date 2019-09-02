@@ -40,13 +40,14 @@
 //!   public parts of the node configurations.
 
 use exonum::blockchain::InstanceCollection;
-use exonum::exonum_merkledb::RocksDB;
+use exonum::exonum_merkledb::{Database, RocksDB};
 use exonum::node::Node;
 use exonum::runtime::rust::ServiceFactory;
 
 use std::sync::Arc;
 
-use crate::command::{Command, ExonumCommand, StandardResult};
+use crate::command::run::NodeRunConfig;
+use crate::command::Command;
 
 pub mod command;
 pub mod config;
@@ -79,20 +80,34 @@ impl NodeBuilder {
     /// Rust runtime enabled only.
     pub fn run(self) -> Result<(), failure::Error> {
         let command = Command::from_args();
-        if let StandardResult::Run(run_config) = command.execute()? {
-            let database = Arc::new(RocksDB::open(
-                run_config.db_path,
-                &run_config.node_config.database,
-            )?) as Arc<_>;
-            let node = Node::new(
-                database,
-                self.services.into_iter().map(InstanceCollection::new),
-                run_config.node_config,
-                None,
-            );
-            node.run()
-        } else {
-            Ok(())
+        match command {
+            Command::GenerateTemplate(command) => {
+                command.execute()?;
+            }
+            Command::GenerateConfig(command) => {
+                command.execute()?;
+            }
+            Command::Finalize(command) => {
+                command.execute()?;
+            }
+            Command::Maintenance(command) => {
+                command.execute()?;
+            }
+            Command::Run(command) => self.run_with_config(command.execute()?)?,
+            Command::RunDev(command) => self.run_with_config(command.execute()?)?,
         }
+        Ok(())
+    }
+
+    fn run_with_config(self, run_config: NodeRunConfig) -> Result<(), failure::Error> {
+        let db_options = &run_config.node_config.database;
+        let database: Arc<dyn Database> = Arc::new(RocksDB::open(run_config.db_path, db_options)?);
+        let node = Node::new(
+            database,
+            self.services.into_iter().map(InstanceCollection::new),
+            run_config.node_config,
+            None,
+        );
+        node.run()
     }
 }

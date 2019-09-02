@@ -26,8 +26,7 @@ use std::str::FromStr;
 use crate::command::finalize::Finalize;
 use crate::command::generate_config::{GenerateConfig, PUB_CONFIG_FILE_NAME, SEC_CONFIG_FILE_NAME};
 use crate::command::generate_template::GenerateTemplate;
-use crate::command::run::Run;
-use crate::command::{ExonumCommand, StandardResult};
+use crate::command::run::{NodeRunConfig, Run};
 
 #[derive(StructOpt, Debug, Serialize, Deserialize)]
 #[structopt(rename_all = "kebab-case")]
@@ -39,23 +38,8 @@ pub struct RunDev {
 }
 
 impl RunDev {
-    fn artifact_path(&self, artifact_name: &str) -> PathBuf {
-        let mut path = self.artifacts_dir.clone();
-        path.push(artifact_name);
-        path
-    }
-
-    fn cleanup(&self) {
-        let database_dir = self.artifact_path("db");
-        if database_dir.exists() {
-            fs::remove_dir_all(self.artifacts_dir.clone())
-                .expect("Expected DATABASE_PATH folder being removable.");
-        }
-    }
-}
-
-impl ExonumCommand for RunDev {
-    fn execute(self) -> Result<StandardResult, Error> {
+    /// Run a single node with automatically generated configuration.
+    pub fn execute(self) -> Result<NodeRunConfig, Error> {
         self.cleanup();
 
         let common_config = self.artifact_path("template.toml");
@@ -99,5 +83,19 @@ impl ExonumCommand for RunDev {
             service_key_pass: Some(FromStr::from_str("pass:").unwrap()),
         };
         run.execute()
+    }
+
+    fn artifact_path(&self, artifact_name: &str) -> PathBuf {
+        let mut path = self.artifacts_dir.clone();
+        path.push(artifact_name);
+        path
+    }
+
+    fn cleanup(&self) {
+        let database_dir = self.artifact_path("db");
+        if database_dir.exists() {
+            fs::remove_dir_all(self.artifacts_dir.clone())
+                .expect("Expected DATABASE_PATH folder being removable.");
+        }
     }
 }
